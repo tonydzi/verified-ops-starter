@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use verified-ops-starter in research or software, please cite it as below."
+title: "verified-ops-starter: evidence instead of self-reports for scheduled jobs"
+type: software
+authors:
+  - family-names: Dziatkovskii
+    given-names: Anton
+    orcid: "https://orcid.org/0000-0001-7408-3054"
+    affiliation: "Palo Alto AI Research Lab"
+repository-code: "https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter"
+url: "https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter"
+license: MIT
+keywords:
+  - observability
+  - cron monitoring
+  - AI agents
+  - silent failure
+  - fail-safe design
+abstract: >-
+  Three dependency-free checks that replace a job's self-report with evidence:
+  freshness (is the real output young enough), wrap (did this run change anything),
+  and rollout (is the fix on every box, read back as a fact). All three speak one
+  exit-code contract in which a dead checker cannot look like a clean result, and
+  every state in the test suite is produced by planting the actual failure first.

@@ -10,31 +10,31 @@
 Three small checks, no server, no dependencies. They replace a job's *self-report*
 with *evidence*:
 
-| check | question it answers | catches |
-|---|---|---|
-| `freshness` | is the job's real **output** young enough? | exit 0 while the artifact rots |
-| `wrap` | did this run actually **change** anything? | exit 0 with no work done |
-| `rollout` | is the fix **on every box**, read back as a fact? | "rolled out" that never landed |
+| check | question it answers | catches | code |
+|---|---|---|---|
+| `freshness` | is the job's real **output** young enough? | exit 0 while the artifact rots | `verified_ops/freshness.py` |
+| `wrap` | did this run actually **change** anything? | exit 0 with no work done | `verified_ops/wrap.py` |
+| `rollout` | is the fix **on every box**, read back as a fact? | "rolled out" that never landed | `verified_ops/rollout.py` |
 
-Everything speaks one [exit-code contract](#exit-code-contract) in which a dead
-checker cannot look like a clean result.
+Everything speaks one [exit-code contract](#exit-code-contract), implemented once in
+`verified_ops/contract.py`, in which a dead checker cannot look like a clean result.
 
 ## Why
 
 An agent, a cron job and a nightly script all report on themselves, and the report
-is the first thing to break:
+is the first thing to break — each failure below has its own mutant in `selftest.py`:
 
-- the model refused, the API returned an empty page, the token expired, the filter
-  matched nothing — the process still **exits 0** and stamps its heartbeat;
-- a checker written in Python dies on an unhandled exception and **exits 1** — the
-  same code many checkers use for "I found a problem", so the dashboard paints the
-  corpse yellow and moves on;
-- the fix "was rolled out" because it was *sent*, and an offline box, a lagging box
-  and a healthy box are all equally quiet.
+- the model refused, the API returned an empty page, the token expired, the filter matched
+  nothing — the process still **exits 0** and stamps its heartbeat (caught by `verified_ops/wrap.py`);
+- a checker written in Python dies on an unhandled exception and **exits 1** — the same code
+  many checkers use for "I found a problem", so the dashboard paints the corpse yellow and
+  moves on (caught by `verified_ops/contract.py`);
+- the fix "was rolled out" because it was *sent*, and an offline box, a lagging box and a
+  healthy box are all equally quiet (caught by `verified_ops/rollout.py`).
 
-Heartbeat monitoring (healthchecks.io, cronitor, dead-man switches) answers *did it
-fire?* — a genuinely different question, and worth having. This kit answers *did the
-work land?* and is designed to sit next to them, not replace them.
+Heartbeat monitoring (https://healthchecks.io, cronitor, dead-man switches) answers
+*did it fire?* — a genuinely different question, and worth having.
+This kit answers *did the work land?* and is designed to sit next to them, not replace them.
 
 ## Quickstart (5 minutes, nothing to install)
 
@@ -106,15 +106,16 @@ the artifact path with the file your job rewrites on every healthy run, set
 4  CRASHED      the checker itself died
 ```
 
-Three rules give the codes teeth:
+Three rules give the codes teeth, all enforced in `verified_ops/contract.py`:
 
-- **1 is only returned after delivery succeeded.** If your pager is down the answer is
-  3, never 1 — otherwise "problem found" and "problem announced" become the same event.
-  `--dry-run` returns 3 for the same reason: it announces nothing.
-- **A run that measured nothing returns 4, never 0.** An empty artifact list, a misspelled
-  `artifacts` key, a rollout where every target opted out — all of them used to produce
-  the cheerful zero this kit exists to stop.
-- **Any uncaught exception becomes 4.** Wrap your own checkers too, it is one line:
+- **1 is only returned after delivery succeeded** (`verified_ops/alert.py`). If your pager is
+  down the answer is 3, never 1 — otherwise "problem found" and "problem announced" become
+  the same event. `--dry-run` returns 3 for the same reason: it announces nothing.
+- **A run that measured nothing returns 4, never 0** (`verified_ops/cli.py`). An empty artifact
+  list, a misspelled `artifacts` key, a rollout where every target opted out — all of them used
+  to produce the cheerful zero this kit exists to stop.
+- **Any uncaught exception becomes 4** (`guard` in `verified_ops/contract.py`). Wrap your own
+  checkers too, it is one line:
 
 ```python
 from verified_ops import guard
@@ -157,43 +158,46 @@ Relative artifact paths resolve against the config file's directory; `verify` an
 Use `"newest_glob": "out/dump-*.json"` instead of `"path"` for jobs that write a new
 dated file each run.
 
-`rollout` refuses to count a target whose `verify` only exits 0 — it comes back `WEAK`
-and keeps the rollout open. Exit 0 is the verify saying *"I ran"*; `expect` is what
-makes it say *"the value is here"*.
+`rollout` refuses to count a target whose `verify` only exits 0 — it comes back `WEAK` and
+keeps the rollout open (`check_target` in `verified_ops/rollout.py`). Exit 0 is the verify
+saying *"I ran"*; `expect` is what makes it say *"the value is here"*.
 
 `expect` is a plain substring, so `ttl=900` also matches `ttl=9000`. When the fact has
-neighbours, use `"expect_regex": "\\bttl=900\\b"` instead.
+neighbours, use `"expect_regex": "\\bttl=900\\b"` instead — also `verified_ops/rollout.py`.
 
-`wrap` takes `--timeout-s N`: a job that hangs is killed and announced, because "still
-running" is the quietest failure a scheduler can show you.
+`wrap` takes `--timeout-s N`: a job that hangs is killed and announced (`verified_ops/wrap.py`),
+because "still running" is the quietest failure a scheduler can show you.
 
 ## Traps this kit already paid for
 
-Each one cost a real silent outage before it became a line of code or a test:
+Each one cost a real silent outage before it became a line of code or a test. The file after
+each trap is where it is handled; every one has a mutant in `selftest.py`:
 
-- **`exit 1` collides.** Python's unhandled-exception code is the same code checkers use
-  for "found something". Hence `guard()` and the 4.
-- **Fresh mtime ≠ fresh work over a synced folder.** Syncthing/Dropbox/rsync stamp a new
-  mtime while copying an *old* file onto the box, so a stale artifact reads green. Only
-  point `newest_glob` at a directory your sync engine cannot touch.
-- **A wide glob mask hides a stall.** One unrelated file landing in the same folder masks
-  a dead job forever. The tool always prints *which* file it measured and how many matched.
-- **200 with the wrong body.** Fresh and non-empty is not the same as correct — that is
-  what `contains` is for, and the marker must come from the body, never the filename.
-- **Alert receivers that read argv as filenames** (`cat`, `curl -d @-`) fail on the extra
-  argument and turn a finding into an exit 3. The alert text arrives on **stdin as well**;
-  use it.
-- **Silence is not consent.** An unreachable rollout target is `UNREACHABLE`, never
-  "probably fine".
-- **mtime is evidence, not proof.** `wrap` compares (mtime, size) around the run, so a
-  third process writing the artifact mid-run would still read as work landed, and a job
-  rewriting byte-identical content on a coarse filesystem can read as a no-op. Where that
+- **`exit 1` collides** — `verified_ops/contract.py`. Python's unhandled-exception code is the
+  same code checkers use for "found something". Hence `guard()` and the 4.
+- **Fresh mtime ≠ fresh work over a synced folder** — `verified_ops/freshness.py`.
+  Syncthing/Dropbox/rsync stamp a new mtime while copying an *old* file onto the box, so a
+  stale artifact reads green. Only point `newest_glob` at a directory your sync engine cannot touch.
+- **A wide glob mask hides a stall** — `verified_ops/freshness.py`. One unrelated file landing
+  in the same folder masks a dead job forever, so the tool always prints *which* file it
+  measured and how many matched.
+- **200 with the wrong body** — `verified_ops/freshness.py` (`NO_MARKER`). Fresh and non-empty
+  is not the same as correct: that is what `contains` is for, and the marker must come from
+  the body, never the filename.
+- **Alert receivers that read argv as filenames** (`cat`, `curl -d @-`) — `verified_ops/alert.py`.
+  They fail on the extra argument and turn a finding into an exit 3, so the alert text arrives
+  on **stdin as well**; use it.
+- **Silence is not consent** — `verified_ops/rollout.py`. An unreachable rollout target is
+  `UNREACHABLE`, never "probably fine".
+- **mtime is evidence, not proof** — `verified_ops/wrap.py` compares (mtime, size) around the
+  run, so a third process writing the artifact mid-run would still read as work landed, and a
+  job rewriting byte-identical content on a coarse filesystem can read as a no-op. Where that
   matters, point `--artifact` at a file only this job writes.
-- **A directory has an mtime too.** Point `path` at a folder by accident and a naive check
-  calls it fresh forever; here it is `UNREADABLE`.
-- **A config that checks nothing exits 0 by default.** Every monitoring tool has this hole;
-  here an empty or misspelled config is a `4`. Found by an external reviewer on day one —
-  which is also why the mutants exist.
+- **A directory has an mtime too** — `verified_ops/freshness.py`. Point `path` at a folder by
+  accident and a naive check calls it fresh forever; here it is `UNREADABLE`.
+- **A config that checks nothing exits 0 by default** — `verified_ops/cli.py`. Every monitoring
+  tool has this hole; here an empty or misspelled config is a `4`. Found by an external reviewer
+  on day one, which is also why the mutants exist.
 
 ## Wiring it in
 
@@ -216,10 +220,11 @@ Python 3.8+, standard library only. No server, no database, no account. Tested o
 
 ## The rule this repo lives by
 
-*A check with no mutant that makes it fail measures nothing.* Every state in
-`selftest.py` is produced by planting the actual failure — a backdated file, an empty
-rewrite, a verify that only exits 0, a job that no-ops, a checker that crashes — and
-demanding the right state **and** the right exit code. If you add a check, add its mutant.
+*A check with no mutant that makes it fail measures nothing.* Every state in `selftest.py`
+is produced by planting the actual failure — a backdated file, an empty rewrite, a verify
+that only exits 0, a job that no-ops, a checker that crashes — and demanding the right state
+**and** the right exit code. `python3 selftest.py` prints `44 checks, 0 failed` and exits 0.
+If you add a check, add its mutant.
 
 ## Provenance
 
