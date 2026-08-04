@@ -226,6 +226,27 @@ that only exits 0, a job that no-ops, a checker that crashes — and demanding t
 **and** the right exit code. `python3 selftest.py` prints `44 checks, 0 failed` and exits 0.
 If you add a check, add its mutant.
 
+## Roadmap
+
+**Now — [v0.1.0](https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter/releases/tag/v0.1.0).**
+The three checks (`freshness`, `wrap`, `rollout`), one exit-code contract, 44 self-test checks
+each with the mutant that breaks it, CI on three OSes × three Pythons.
+
+**Next**, in the order we would take them:
+
+- **A fourth check: parity across boxes over time.** `rollout` answers "is the fix on every box
+  right now"; it cannot yet answer "which box has been silently drifting for a week".
+- **Read-back adapters beyond the shell** — today a rollout target proves itself with a command.
+  HTTP endpoints and SQL rows are the two we hit most often in our own fleet.
+- **A one-file report a human can read**, so the evidence lands somewhere other than an exit code.
+- **What we are deliberately not building:** a server, a daemon, a dashboard or an account. This
+  kit sits next to heartbeat monitoring (healthchecks.io, cronitor, dead-man switches), which
+  answers *did it fire?* — a genuinely different question from *did the work land?*
+
+Every noticeable change ships as a new release, so the
+[release feed](https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter/releases) is the
+record of what this kit can actually prove — which is the only claim it makes.
+
 ## Provenance
 
 Distilled and sanitized from a live multi-machine agent fleet where all of these
