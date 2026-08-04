@@ -1,0 +1,41 @@
+{
+  "_comment": "Copy this next to your jobs and edit. Paths are resolved against the config file's directory unless absolute.",
+  "artifacts": [
+    {
+      "name": "nightly export",
+      "path": "out/export.json",
+      "max_age_h": 26,
+      "min_bytes": 2,
+      "contains": "\"rows\"",
+      "cure": "python examples/demo_job.py --once, then read out/export.json"
+    },
+    {
+      "name": "dated dumps",
+      "newest_glob": "out/dump-*.json",
+      "max_age_h": 26,
+      "only_if_exists": true,
+      "cure": "keep the mask NARROW and the folder out of any sync engine"
+    }
+  ],
+  "rollout": {
+    "fix": "demo: config carries mode=verified",
+    "timeout_s": 20,
+    "targets": [
+      {
+        "name": "this box",
+        "verify": [
+          "${PYTHON}",
+          "-c",
+          "import io,os,sys;print(io.open(os.path.join('examples','out','mode.txt')).read())"
+        ],
+        "expect": "mode=verified"
+      },
+      {
+        "name": "cloud runner",
+        "not_for_me": "reads the mode from the environment, no local file"
+      }
+    ]
+  },
+  "_alert_note": "No 'alert' block here on purpose -> the console rail (stderr) is used, and it is always deliverable. To page a human, add: \"alert\": {\"command\": [\"python3\", \"tools/page.py\"]}. Delivery counts only when the command exits 0. The alert text arrives BOTH on stdin and as the last argument -- do not use a receiver that treats arguments as filenames (cat, curl -d @-): it will fail on the extra argument and you will get exit 3.",
+  "alert": {}
+}
