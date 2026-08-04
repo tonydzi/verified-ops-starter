@@ -20,7 +20,9 @@ honest failure modes worth more than features.
    but undeliverable, `4` the checker crashed. Never return 1 for something nobody heard.
    Never let an exception escape as 1 — that is what `contract.guard()` is for.
 4. **Silence is not success.** An unreachable target, an unreadable file or a missing
-   answer is a finding, never a pass.
+   answer is a finding, never a pass. Neither is an empty run: if a command evaluated
+   nothing (no artifacts, all rows skipped, every target opted out) it returns 4, because
+   "I checked nothing" and "everything is fine" must not share an exit code.
 5. **No fabricated numbers.** README examples are pasted from real runs. If you change
    output, re-run and re-paste. Where something is inferred rather than measured, say so
    in the same sentence.

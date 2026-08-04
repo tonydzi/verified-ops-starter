@@ -37,7 +37,8 @@ def _cmd_wrap(args):
     alert = None
     if args.config and os.path.isfile(args.config):
         alert = _load(args.config).get("alert")
-    return wrap.run(args.command, args.artifact, alert_spec=alert)
+    signal = [int(c) for c in (args.signal or "").replace(",", " ").split()]
+    return wrap.run(args.command, args.artifact, alert_spec=alert, signal=signal)
 
 
 def _cmd_codes(_args):
@@ -69,6 +70,9 @@ def build_parser():
     w = sub.add_parser("wrap", help="run a job and catch 'exit 0 with no work done'")
     w.add_argument("--artifact", required=True, help="the file the job must rewrite")
     w.add_argument("--config", default="verified-ops.json", help="only read for its alert rail")
+    w.add_argument("--signal", default="", help="child exit codes that are designed findings "
+                                                "(e.g. --signal 1,3); everything else non-zero "
+                                                "is reported as 4")
     w.add_argument("command", nargs=argparse.REMAINDER)
     w.set_defaults(func=_cmd_wrap)
 

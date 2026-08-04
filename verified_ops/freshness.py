@@ -145,6 +145,7 @@ def run(config, root=".", dry_run=False, as_json=False, out=None):
     out = out or sys.stdout
     results = [check_one(spec, root) for spec in config.get("artifacts", [])]
     bad = [r for r in results if r["state"] in _BAD]
+    measured = [r for r in results if r["state"] != SKIPPED]
 
     if as_json:
         out.write(json.dumps({"results": results, "bad": len(bad)}, indent=2) + "\n")
@@ -154,12 +155,20 @@ def run(config, root=".", dry_run=False, as_json=False, out=None):
             out.write("%-11s %s%s%s\n" % (
                 r["state"], r["name"], age, (" -- " + r["detail"]) if r["detail"] else ""))
 
+    if not measured:
+        # Zero evidence is not good news. An empty/misspelled "artifacts" key, or a config
+        # where every row is only_if_exists and nothing exists, would otherwise report the
+        # cheerful 0 that this whole kit exists to stop.
+        sys.stderr.write("verified-ops freshness: nothing was measured (%d artifact(s) declared, "
+                         "%d skipped) -> exit %d\n" % (len(results), len(results), contract.CRASHED))
+        return contract.CRASHED
     if not bad:
         return contract.CLEAN
     text = report(results)
     if dry_run:
+        # UNDELIVERED, not FOUND: 1 means "announced", and --dry-run announces nothing.
         out.write("\n--dry-run: alert NOT delivered. It would have said:\n" + text + "\n")
-        return contract.FOUND
+        return contract.UNDELIVERED
     out.flush()  # keep stdout and the stderr alert in the order a human reads them
     ok, how = Alerter(config.get("alert")).deliver(text)
     if not ok:

@@ -122,6 +122,7 @@ def run(config, dry_run=False, as_json=False, out=None):
     timeout = float(spec.get("timeout_s", 30))
     results = [check_target(t, timeout) for t in spec.get("targets", [])]
     bad = [r for r in results if r["state"] in _BAD]
+    measured = [r for r in results if r["state"] != NOT_FOR_ME]
 
     if as_json:
         out.write(json.dumps({"fix": fix, "results": results, "bad": len(bad)}, indent=2) + "\n")
@@ -130,12 +131,17 @@ def run(config, dry_run=False, as_json=False, out=None):
         for r in results:
             out.write("%-12s %s -- %s\n" % (r["state"], r["name"], r["detail"]))
 
+    if not measured:
+        out.write("nothing was proven: %d target(s) declared, all opted out or none listed\n"
+                  % len(results))
+        out.flush()
+        return contract.CRASHED
     if not bad:
         return contract.CLEAN
     text = report(fix, results)
     if dry_run:
         out.write("\n--dry-run: alert NOT delivered. It would have said:\n" + text + "\n")
-        return contract.FOUND
+        return contract.UNDELIVERED
     out.flush()
     ok, how = Alerter(config.get("alert")).deliver(text)
     if not ok:

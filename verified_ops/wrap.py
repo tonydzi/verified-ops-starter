@@ -7,10 +7,15 @@ exits 0 but the artifact did not move, that is a silent no-op -- the single most
 common way a scheduled job stays green for weeks while producing nothing. The
 job cannot detect this about itself, which is exactly why the wrapper does it.
 
-Exit codes: the child's own code passes through unchanged when it is non-zero
-(a loud failure is already visible). The wrapper only overrides the quiet case:
-child exited 0, artifact did not move -> FOUND (1), or UNDELIVERED (3) if the
-alert could not be sent.
+Exit codes. The quiet case is the point: child exited 0, artifact did not move
+-> FOUND (1), or UNDELIVERED (3) if the alert could not be sent.
+
+A non-zero child is a loud failure and comes back as CRASHED (4) by default --
+NOT passed through. Passing it through would be a trap this kit exists to close:
+a job that dies with Python's default exit 1 would land on exactly the code that
+means "found a problem and announced it". If some non-zero code of yours really
+is a designed finding, declare it: `--signal 1,3`. Declared codes pass through
+unchanged, everything else is red.
 """
 
 import os
@@ -31,8 +36,9 @@ def _stamp(path):
         return None
 
 
-def run(argv, artifact, alert_spec=None, out=None):
+def run(argv, artifact, alert_spec=None, out=None, signal=()):
     out = out or sys.stdout
+    signal = set(int(c) for c in signal)
     before = _stamp(artifact)
     started = time.time()
     rc = subprocess.call(list(argv))
@@ -42,8 +48,12 @@ def run(argv, artifact, alert_spec=None, out=None):
     out.write("child exited %d in %.1fs\n" % (rc, took))
     out.flush()
     if rc != 0:
-        out.write("loud failure -- passing the child's exit code through\n")
-        return rc
+        if rc in signal:
+            out.write("exit %d is a declared signal -- passing it through\n" % rc)
+            return rc
+        out.write("loud failure -- reported as %d (CRASHED). If exit %d is a designed "
+                  "finding of yours, declare it with --signal %d\n" % (contract.CRASHED, rc, rc))
+        return contract.CRASHED
 
     if after is None:
         why = "the job exited 0 but %s does not exist" % artifact

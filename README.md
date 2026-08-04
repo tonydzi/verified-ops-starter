@@ -41,7 +41,7 @@ work land?* and is designed to sit next to them, not replace them.
 ```bash
 git clone https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter
 cd verified-ops-starter
-python3 selftest.py        # 31 checks, every one of them broken by a mutant first
+python3 selftest.py        # 39 checks, every one of them broken by a mutant first
 ```
 
 **1. A healthy run, then the freshness check:**
@@ -75,6 +75,11 @@ alert delivered via console
 ```
 `echo $?` → `1` (found **and** announced).
 
+A wrapped job that dies is red, not yellow: any non-zero child code comes back as `4`,
+because a job crashing with Python's default exit 1 would otherwise land on the code that
+means "found something and announced it". If one of your job's non-zero codes really is a
+designed finding, declare it — `--signal 1,3` — and it passes through unchanged.
+
 **3. Prove a fix is really on every box:**
 
 ```bash
@@ -101,10 +106,14 @@ the artifact path with the file your job rewrites on every healthy run, set
 4  CRASHED      the checker itself died
 ```
 
-Two rules give the codes teeth:
+Three rules give the codes teeth:
 
 - **1 is only returned after delivery succeeded.** If your pager is down the answer is
   3, never 1 — otherwise "problem found" and "problem announced" become the same event.
+  `--dry-run` returns 3 for the same reason: it announces nothing.
+- **A run that measured nothing returns 4, never 0.** An empty artifact list, a misspelled
+  `artifacts` key, a rollout where every target opted out — all of them used to produce
+  the cheerful zero this kit exists to stop.
 - **Any uncaught exception becomes 4.** Wrap your own checkers too, it is one line:
 
 ```python
@@ -170,6 +179,9 @@ Each one cost a real silent outage before it became a line of code or a test:
   use it.
 - **Silence is not consent.** An unreachable rollout target is `UNREACHABLE`, never
   "probably fine".
+- **A config that checks nothing exits 0 by default.** Every monitoring tool has this hole;
+  here an empty or misspelled config is a `4`. Found by an external reviewer on day one —
+  which is also why the mutants exist.
 
 ## Wiring it in
 

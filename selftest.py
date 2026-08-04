@@ -76,12 +76,15 @@ def test_freshness():
         rc, out = cli(["freshness", "--config", c])
         ck("freshness: missing artifact -> FOUND(1)", rc == 1 and "MISSING" in out, "rc=%d" % rc)
 
-        # only_if_exists: absence is a declared non-event, not an alarm.
-        c2 = cfg(tmp, {"artifacts": [{"name": "opt", "path": "nope.json",
-                                      "max_age_h": 1, "only_if_exists": True}]})
+        # only_if_exists: absence is a declared non-event, not an alarm -- as long as
+        # something else was actually measured (see test_nothing_measured).
+        write(os.path.join(tmp, "export.json"), '{"rows": 1}\n')
+        c2 = cfg(tmp, {"artifacts": [
+            {"name": "export", "path": "export.json", "max_age_h": 26},
+            {"name": "opt", "path": "nope.json", "max_age_h": 1, "only_if_exists": True}]})
         rc, out = cli(["freshness", "--config", c2])
-        ck("freshness: only_if_exists -> SKIPPED, CLEAN(0)", rc == 0 and "SKIPPED" in out,
-           "rc=%d" % rc)
+        ck("freshness: only_if_exists -> SKIPPED, CLEAN(0)",
+           rc == 0 and "SKIPPED" in out and "FRESH" in out, "rc=%d" % rc)
 
         # MUTANT 3: fresh, but the job wrote an empty file (a very common quiet failure).
         write(os.path.join(tmp, "export.json"), "")
@@ -96,6 +99,20 @@ def test_freshness():
                                       "max_age_h": 26, "contains": '"rows"'}]})
         rc, out = cli(["freshness", "--config", c4])
         ck("freshness: marker missing -> FOUND(1)", rc == 1 and "NO_MARKER" in out, "rc=%d" % rc)
+
+
+def test_nothing_measured():
+    """MUTANT 14 (Codex T3 #1): a config that measures nothing must never report CLEAN."""
+    with tempfile.TemporaryDirectory() as tmp:
+        rc, out = cli(["freshness", "--config", cfg(tmp, {"artifacts": []})])
+        ck("freshness: no artifacts declared -> CRASHED(4)", rc == 4, "rc=%d" % rc)
+        # typo in the key: the config parses, declares nothing, and used to exit 0
+        rc, out = cli(["freshness", "--config", cfg(tmp, {"artefacts": [{"name": "x"}]})])
+        ck("freshness: misspelled key -> CRASHED(4), never 0", rc == 4, "rc=%d" % rc)
+        # everything optional and absent = nothing measured, however cheerful the config looks
+        rc, out = cli(["freshness", "--config", cfg(tmp, {"artifacts": [
+            {"name": "opt", "path": "nope.json", "max_age_h": 1, "only_if_exists": True}]})])
+        ck("freshness: all rows skipped -> CRASHED(4)", rc == 4, "rc=%d" % rc)
 
 
 def test_freshness_glob_decoy():
@@ -135,8 +152,8 @@ def test_alert_rail():
         c = cfg(tmp, {"artifacts": [{"name": "e", "path": "export.json", "max_age_h": 1}],
                       "alert": {"command": good}})
         rc, out = cli(["freshness", "--config", c, "--dry-run"])
-        ck("alert: --dry-run delivers nothing", rc == 1 and not os.path.exists(sentinel),
-           "rc=%d" % rc)
+        ck("alert: --dry-run delivers nothing -> UNDELIVERED(3)",
+           rc == 3 and not os.path.exists(sentinel), "rc=%d" % rc)
 
 
 # ----------------------------------------------------------------- rollout ---
@@ -173,10 +190,23 @@ def test_rollout():
         ck("rollout: ${PYTHON} expands to this interpreter", rc == 0 and "APPLIED" in out,
            "rc=%d" % rc)
 
-        # An explicit opt-out is an answer, so it does not hold the rollout open.
+        # An explicit opt-out is an answer, so it does not hold the rollout open -- as long
+        # as at least one target actually proved something.
+        base["rollout"]["targets"] = [
+            {"name": "hub", "verify": ["${PYTHON}", "-c", "print('ttl=900')"], "expect": "ttl=900"},
+            {"name": "cloud", "not_for_me": "no local config"}]
+        rc, out = cli(["rollout", "--config", cfg(tmp, base)])
+        ck("rollout: not_for_me beside a proof -> CLEAN(0)",
+           rc == 0 and "NOT_FOR_ME" in out and "APPLIED" in out, "rc=%d" % rc)
+
+        # MUTANT 12 (Codex T3 #1): every target opted out -> nothing was proven. Not green.
         base["rollout"]["targets"] = [{"name": "cloud", "not_for_me": "no local config"}]
         rc, out = cli(["rollout", "--config", cfg(tmp, base)])
-        ck("rollout: not_for_me -> CLEAN(0)", rc == 0 and "NOT_FOR_ME" in out, "rc=%d" % rc)
+        ck("rollout: only opt-outs -> CRASHED(4), never 0", rc == 4, "rc=%d" % rc)
+
+        # MUTANT 13: an empty target list is a config that checks nothing.
+        rc, out = cli(["rollout", "--config", cfg(tmp, {"rollout": {"fix": "x", "targets": []}})])
+        ck("rollout: no targets -> CRASHED(4)", rc == 4, "rc=%d" % rc)
 
 
 # -------------------------------------------------------------------- wrap ---
@@ -196,11 +226,22 @@ def test_wrap():
         ck("wrap: exit 0 with no work -> FOUND(1)", rc == 1 and "silent no-op" in out,
            "rc=%d" % rc)
 
-        # A loud failure is already visible; the wrapper must not repaint it.
+        # MUTANT 15 (Codex T3 #2): a wrapped job dying with Python's default exit 1 must NOT
+        # land on the code that means "found a problem and announced it".
+        job_dead = [PY, "-c", "raise RuntimeError('boom')"]
+        rc, out = cli(["wrap", "--artifact", art, "--config", os.path.join(tmp, "none.json"),
+                       "--"] + job_dead)
+        ck("wrap: child crash (exit 1) -> CRASHED(4), never FOUND(1)", rc == 4, "rc=%d" % rc)
+
+        # ...unless the code is declared a designed finding, and then it passes through.
+        rc, out = cli(["wrap", "--artifact", art, "--config", os.path.join(tmp, "none.json"),
+                       "--signal", "1,3", "--"] + job_dead)
+        ck("wrap: --signal 1 passes the declared code through", rc == 1, "rc=%d" % rc)
+
         job_loud = [PY, "-c", "import sys;sys.exit(2)"]
         rc, out = cli(["wrap", "--artifact", art, "--config", os.path.join(tmp, "none.json"),
                        "--"] + job_loud)
-        ck("wrap: loud failure passes through", rc == 2, "rc=%d" % rc)
+        ck("wrap: undeclared non-zero -> CRASHED(4)", rc == 4, "rc=%d" % rc)
 
 
 # ---------------------------------------------------------------- contract ---
@@ -248,6 +289,7 @@ def test_examples_config_is_valid():
 def main():
     print("verified-ops selftest  (python %s)" % sys.version.split()[0])
     test_freshness()
+    test_nothing_measured()
     test_freshness_glob_decoy()
     test_alert_rail()
     test_rollout()
