@@ -53,6 +53,15 @@ selftest.py                the mutants
 examples/                  a config and a job that fails on purpose
 ```
 
+## What external review already broke
+
+Both rounds are in `selftest.py` as mutants, and both are the reason rule 2 exists:
+a first reviewer found that a config measuring nothing exited 0, that `wrap` passed a
+crashed child's exit 1 through as a finding, and that `--dry-run` claimed delivery; a
+second one found a directory reading as a fresh artifact, a hung child hanging the
+wrapper forever, `expect` matching `ttl=9000` for `ttl=900`, and a bare invocation
+exiting 0 after printing help. Assume the next reviewer will find more.
+
 ## Good first contributions
 
 - a state this kit is blind to (permissions changed, artifact truncated mid-write);

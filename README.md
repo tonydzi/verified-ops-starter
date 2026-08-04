@@ -41,7 +41,7 @@ work land?* and is designed to sit next to them, not replace them.
 ```bash
 git clone https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter
 cd verified-ops-starter
-python3 selftest.py        # 39 checks, every one of them broken by a mutant first
+python3 selftest.py        # 44 checks, every one of them broken by a mutant first
 ```
 
 **1. A healthy run, then the freshness check:**
@@ -161,6 +161,12 @@ dated file each run.
 and keeps the rollout open. Exit 0 is the verify saying *"I ran"*; `expect` is what
 makes it say *"the value is here"*.
 
+`expect` is a plain substring, so `ttl=900` also matches `ttl=9000`. When the fact has
+neighbours, use `"expect_regex": "\\bttl=900\\b"` instead.
+
+`wrap` takes `--timeout-s N`: a job that hangs is killed and announced, because "still
+running" is the quietest failure a scheduler can show you.
+
 ## Traps this kit already paid for
 
 Each one cost a real silent outage before it became a line of code or a test:
@@ -179,6 +185,12 @@ Each one cost a real silent outage before it became a line of code or a test:
   use it.
 - **Silence is not consent.** An unreachable rollout target is `UNREACHABLE`, never
   "probably fine".
+- **mtime is evidence, not proof.** `wrap` compares (mtime, size) around the run, so a
+  third process writing the artifact mid-run would still read as work landed, and a job
+  rewriting byte-identical content on a coarse filesystem can read as a no-op. Where that
+  matters, point `--artifact` at a file only this job writes.
+- **A directory has an mtime too.** Point `path` at a folder by accident and a naive check
+  calls it fresh forever; here it is `UNREADABLE`.
 - **A config that checks nothing exits 0 by default.** Every monitoring tool has this hole;
   here an empty or misspelled config is a `4`. Found by an external reviewer on day one —
   which is also why the mutants exist.

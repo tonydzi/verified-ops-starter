@@ -83,6 +83,12 @@ def check_one(spec, root=".", now=None):
     if note:
         out["detail"] = note
 
+    if not os.path.isfile(path):
+        # A directory (or a socket, or a broken symlink target) has an mtime and a size,
+        # so without this it would read FRESH forever while no artifact body exists.
+        out["state"] = UNREADABLE
+        out["detail"] = "not a regular file: %s" % path
+        return out
     try:
         st = os.stat(path)
     except OSError as exc:

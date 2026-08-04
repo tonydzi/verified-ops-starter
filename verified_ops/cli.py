@@ -38,7 +38,8 @@ def _cmd_wrap(args):
     if args.config and os.path.isfile(args.config):
         alert = _load(args.config).get("alert")
     signal = [int(c) for c in (args.signal or "").replace(",", " ").split()]
-    return wrap.run(args.command, args.artifact, alert_spec=alert, signal=signal)
+    return wrap.run(args.command, args.artifact, alert_spec=alert, signal=signal,
+                    timeout_s=(float(args.timeout_s) if args.timeout_s else None))
 
 
 def _cmd_codes(_args):
@@ -73,6 +74,8 @@ def build_parser():
     w.add_argument("--signal", default="", help="child exit codes that are designed findings "
                                                 "(e.g. --signal 1,3); everything else non-zero "
                                                 "is reported as 4")
+    w.add_argument("--timeout-s", dest="timeout_s", default=None,
+                   help="kill the job after N seconds and alert (a hung job is a silent job)")
     w.add_argument("command", nargs=argparse.REMAINDER)
     w.set_defaults(func=_cmd_wrap)
 
@@ -85,7 +88,9 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     if not getattr(args, "func", None):
         build_parser().print_help()
-        return contract.CLEAN
+        sys.stderr.write("\nverified-ops: no subcommand -> nothing was checked (exit %d)\n"
+                         % contract.CRASHED)
+        return contract.CRASHED
     if getattr(args, "command", None) and args.command and args.command[0] == "--":
         args.command = args.command[1:]
     return args.func(args)

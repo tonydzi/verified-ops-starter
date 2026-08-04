@@ -115,6 +115,41 @@ def test_nothing_measured():
         ck("freshness: all rows skipped -> CRASHED(4)", rc == 4, "rc=%d" % rc)
 
 
+def test_grok_round():
+    """MUTANTS 16-19: the holes the second external reviewer (Grok) opened after the first fix."""
+    with tempfile.TemporaryDirectory() as tmp:
+        # 16: a DIRECTORY where the artifact should be -- has an mtime, has a size, no body.
+        os.mkdir(os.path.join(tmp, "export.json"))
+        c = cfg(tmp, {"artifacts": [{"name": "export", "path": "export.json", "max_age_h": 26}]})
+        rc, out = cli(["freshness", "--config", c])
+        ck("freshness: directory in place of the artifact -> not FRESH",
+           rc == 1 and "UNREADABLE" in out, "rc=%d" % rc)
+
+        # 17: a hung job. Without a timeout the wrapper waits forever and the scheduler
+        # shows "still running", which is the quietest failure there is.
+        art = os.path.join(tmp, "out.json")
+        rc, out = cli(["wrap", "--artifact", art, "--config", os.path.join(tmp, "none.json"),
+                       "--timeout-s", "1", "--", PY, "-c", "import time;time.sleep(30)"])
+        ck("wrap: hung job killed and announced -> FOUND(1)", rc == 1 and "hung" in out,
+           "rc=%d" % rc)
+
+        # 18: substring expect matches a longer neighbour; expect_regex must not.
+        base = {"rollout": {"fix": "ttl", "targets": [
+            {"name": "loose", "verify": [PY, "-c", "print('ttl=9000')"], "expect": "ttl=900"}]}}
+        rc, out = cli(["rollout", "--config", cfg(tmp, base)])
+        ck("rollout: substring expect is documented-loose (ttl=9000 matches)",
+           rc == 0 and "APPLIED" in out, "rc=%d" % rc)
+        base["rollout"]["targets"] = [{"name": "tight", "verify": [PY, "-c", "print('ttl=9000')"],
+                                       "expect_regex": r"\bttl=900\b"}]
+        rc, out = cli(["rollout", "--config", cfg(tmp, base)])
+        ck("rollout: expect_regex rejects the neighbour -> FOUND(1)",
+           rc == 1 and "MISSING" in out, "rc=%d" % rc)
+
+        # 19: a bare invocation checked nothing, and used to say so with exit 0.
+        rc, out = cli([])
+        ck("cli: no subcommand -> CRASHED(4), never 0", rc == 4, "rc=%d" % rc)
+
+
 def test_freshness_glob_decoy():
     with tempfile.TemporaryDirectory() as tmp:
         os.mkdir(os.path.join(tmp, "out"))
@@ -290,6 +325,7 @@ def main():
     print("verified-ops selftest  (python %s)" % sys.version.split()[0])
     test_freshness()
     test_nothing_measured()
+    test_grok_round()
     test_freshness_glob_decoy()
     test_alert_rail()
     test_rollout()

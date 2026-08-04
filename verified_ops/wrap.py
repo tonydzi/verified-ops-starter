@@ -36,12 +36,24 @@ def _stamp(path):
         return None
 
 
-def run(argv, artifact, alert_spec=None, out=None, signal=()):
+def run(argv, artifact, alert_spec=None, out=None, signal=(), timeout_s=None):
     out = out or sys.stdout
     signal = set(int(c) for c in signal)
     before = _stamp(artifact)
     started = time.time()
-    rc = subprocess.call(list(argv))
+    try:
+        rc = subprocess.call(list(argv), timeout=timeout_s) if timeout_s else \
+            subprocess.call(list(argv))
+    except subprocess.TimeoutExpired:
+        # A hung child is the quietest failure of all: without this the wrapper waits
+        # forever and the scheduler shows a job that never finished, not one that failed.
+        took = time.time() - started
+        out.write("child did not finish within %ss (killed at %.0fs)\n" % (timeout_s, took))
+        out.flush()
+        text = ("verified-ops wrap: the job hung past its %ss timeout\n  command: %s"
+                % (timeout_s, " ".join(argv)))
+        ok, _how = Alerter(alert_spec).deliver(text)
+        return contract.FOUND if ok else contract.UNDELIVERED
     took = time.time() - started
     after = _stamp(artifact)
 
@@ -49,7 +61,10 @@ def run(argv, artifact, alert_spec=None, out=None, signal=()):
     out.flush()
     if rc != 0:
         if rc in signal:
-            out.write("exit %d is a declared signal -- passing it through\n" % rc)
+            # --signal means "this code is the CHILD's own found-and-delivered signal",
+            # so the wrapper deliberately does not deliver anything on its behalf.
+            out.write("exit %d is a declared signal of the job itself (it owns delivery) "
+                      "-- passing it through\n" % rc)
             return rc
         out.write("loud failure -- reported as %d (CRASHED). If exit %d is a designed "
                   "finding of yours, declare it with --signal %d\n" % (contract.CRASHED, rc, rc))

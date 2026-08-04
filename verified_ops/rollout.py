@@ -33,6 +33,7 @@ Config (JSON, see examples/verified-ops.json):
 """
 
 import os
+import re
 import subprocess
 import sys
 
@@ -58,7 +59,7 @@ def check_target(target, timeout=30):
         out["detail"] = str(target["not_for_me"])
         return out
 
-    expect = target.get("expect")
+    expect = target.get("expect") or target.get("expect_regex")
     if not expect:
         # Deliberate: exit 0 alone is the verify saying "I ran", not "the fact is here".
         out["state"] = WEAK
@@ -92,6 +93,16 @@ def check_target(target, timeout=30):
     if p.returncode != 0:
         out["state"] = UNREACHABLE
         out["detail"] = "verify exited %d: %s" % (p.returncode, body.strip()[:200])
+        return out
+    rx = target.get("expect_regex")
+    if rx:
+        # expect is a plain substring, so "ttl=900" also matches "ttl=9000". Use
+        # expect_regex when the fact has neighbours: "\\bttl=900\\b".
+        if not re.search(rx, body):
+            out["state"] = MISSING
+            out["detail"] = "pattern %r did not match the verify output" % rx
+            return out
+        out["detail"] = "matched %r" % rx
         return out
     if expect not in body:
         out["state"] = MISSING
