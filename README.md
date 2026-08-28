@@ -256,7 +256,7 @@ keyboard fix that sat undelivered on one box for twelve days after being "rolled
 Method, not data — none of the fleet's paths, hosts or secrets are here.
 
 Neighbours from the same lab: [claude-bible](https://github.com/tonydzi/claude-bible)
-(rules-as-files governance), [claude-consensus](https://github.com/tonydzi/claude-consensus)
+(rules-as-files governance), [claude-consensus](https://github.com/tonydzi/claw-consensus)
 (cross-machine agreement), [agent-runtime-integrity-bench](https://github.com/tonydzi/agent-runtime-integrity-bench)
 (integrity scenarios against real agent SDKs — that one tests *someone else's* runtime,
 this one instruments *your own* jobs),
