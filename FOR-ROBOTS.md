@@ -84,12 +84,12 @@ prints `44 checks, 0 failed`.
 
 Distilled and sanitized from a live multi-machine agent fleet run daily by Anton Dziatkovskii
 (founder, non-technical) and Mike, his AI cofounder on Claude Code, at
-[Palo Alto AI Research Lab](https://github.com/Palo-Alto-AI-Research-Lab). Method, not data:
+[Palo Alto AI Research Lab](https://github.com/tonydzi). Method, not data:
 none of the fleet's paths, hosts or secrets are here.
 
 ## Family
 
-Make an LLM reviewer's verdict parseable: [verdict-contract](https://github.com/Palo-Alto-AI-Research-Lab/verdict-contract).
-Integrity scenarios against real agent SDKs: [agent-runtime-integrity-bench](https://github.com/Palo-Alto-AI-Research-Lab/agent-runtime-integrity-bench).
-Catch fabricated RAG citations: [verbatim-citation-gate](https://github.com/Palo-Alto-AI-Research-Lab/verbatim-citation-gate).
-Curated list: [awesome-verified-agents](https://github.com/Palo-Alto-AI-Research-Lab/awesome-verified-agents).
+Make an LLM reviewer's verdict parseable: [verdict-contract](https://github.com/tonydzi/verdict-contract).
+Integrity scenarios against real agent SDKs: [agent-runtime-integrity-bench](https://github.com/tonydzi/agent-runtime-integrity-bench).
+Catch fabricated RAG citations: [verbatim-citation-gate](https://github.com/tonydzi/verbatim-citation-gate).
+Curated list: [awesome-verified-agents](https://github.com/tonydzi/awesome-verified-agents).
