@@ -2,7 +2,7 @@
 
 **Your scheduled job says `exit 0`. Prove it did the work.**
 
-[![selftest](https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter/actions/workflows/selftest.yml/badge.svg)](https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter/actions/workflows/selftest.yml)
+[![selftest](https://github.com/tonydzi/verified-ops-starter/actions/workflows/selftest.yml/badge.svg)](https://github.com/tonydzi/verified-ops-starter/actions/workflows/selftest.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8%2B-blue.svg)](#requirements)
 [![deps: none](https://img.shields.io/badge/dependencies-none-lightgrey.svg)](#requirements)
@@ -39,7 +39,7 @@ This kit answers *did the work land?* and is designed to sit next to them, not r
 ## Quickstart (5 minutes, nothing to install)
 
 ```bash
-git clone https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter
+git clone https://github.com/tonydzi/verified-ops-starter
 cd verified-ops-starter
 python3 selftest.py        # 44 checks, every one of them broken by a mutant first
 ```
@@ -228,7 +228,7 @@ If you add a check, add its mutant.
 
 ## Roadmap
 
-**Now — [v0.1.0](https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter/releases/tag/v0.1.0).**
+**Now — [v0.1.0](https://github.com/tonydzi/verified-ops-starter/releases/tag/v0.1.0).**
 The three checks (`freshness`, `wrap`, `rollout`), one exit-code contract, 44 self-test checks
 each with the mutant that breaks it, CI on three OSes × three Pythons.
 
@@ -244,7 +244,7 @@ each with the mutant that breaks it, CI on three OSes × three Pythons.
   answers *did it fire?* — a genuinely different question from *did the work land?*
 
 Every noticeable change ships as a new release, so the
-[release feed](https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter/releases) is the
+[release feed](https://github.com/tonydzi/verified-ops-starter/releases) is the
 record of what this kit can actually prove — which is the only claim it makes.
 
 ## Provenance
@@ -255,12 +255,12 @@ heartbeat, a checker crashing every night while the board showed a routine findi
 keyboard fix that sat undelivered on one box for twelve days after being "rolled out".
 Method, not data — none of the fleet's paths, hosts or secrets are here.
 
-Neighbours from the same lab: [claude-bible](https://github.com/Palo-Alto-AI-Research-Lab/claude-bible)
-(rules-as-files governance), [claude-consensus](https://github.com/Palo-Alto-AI-Research-Lab/claude-consensus)
-(cross-machine agreement), [agent-runtime-integrity-bench](https://github.com/Palo-Alto-AI-Research-Lab/agent-runtime-integrity-bench)
+Neighbours from the same lab: [claude-bible](https://github.com/tonydzi/claude-bible)
+(rules-as-files governance), [claude-consensus](https://github.com/tonydzi/claude-consensus)
+(cross-machine agreement), [agent-runtime-integrity-bench](https://github.com/tonydzi/agent-runtime-integrity-bench)
 (integrity scenarios against real agent SDKs — that one tests *someone else's* runtime,
 this one instruments *your own* jobs),
-[verbatim-citation-gate](https://github.com/Palo-Alto-AI-Research-Lab/verbatim-citation-gate)
+[verbatim-citation-gate](https://github.com/tonydzi/verbatim-citation-gate)
 (catch fabricated RAG citations).
 
 Contributions welcome — see [AGENTS.md](AGENTS.md) for how this repo expects changes to
@@ -290,4 +290,4 @@ Its closest neighbours in the **gates** layer: [`break-it-first`](https://github
 This project is built by a human + AI team, and the git log says so: Claude writes most of
 the code, Codex and Grok review it, Gemini feeds the research. Each is credited on a commit
 **only if its output changed that commit's content** — no decorative credits. Lab-wide
-policy, one source for every repo: [AI-CONTRIBUTORS.md](https://github.com/Palo-Alto-AI-Research-Lab/.github/blob/main/AI-CONTRIBUTORS.md).
+policy, one source for every repo: [AI-CONTRIBUTORS.md](https://github.com/tonydzi/.github/blob/main/AI-CONTRIBUTORS.md).
