@@ -7,8 +7,8 @@ authors:
     given-names: Anton
     orcid: "https://orcid.org/0000-0001-7408-3054"
     affiliation: "Palo Alto AI Research Lab"
-repository-code: "https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter"
-url: "https://github.com/Palo-Alto-AI-Research-Lab/verified-ops-starter"
+repository-code: "https://github.com/tonydzi/verified-ops-starter"
+url: "https://github.com/tonydzi/verified-ops-starter"
 license: MIT
 keywords:
   - observability
