@@ -281,7 +281,7 @@ demo — and it runs on its own: nothing here phones home to the rest.
 
 **See how the whole thing fits together → [SYSTEM.md](https://github.com/tonydzi/tonydzi/blob/main/SYSTEM.md)**
 
-Its closest neighbours in the **gates** layer: [`oss-publish`](https://github.com/tonydzi/oss-publish) · [`agent-runtime-integrity-bench`](https://github.com/tonydzi/agent-runtime-integrity-bench) · [`agent-control-plane-casebook`](https://github.com/tonydzi/agent-control-plane-casebook)
+Its closest neighbours in the **gates** layer: [`oss-publish`](https://github.com/tonydzi/oss-publish) · [`agent-runtime-integrity-bench`](https://github.com/tonydzi/agent-runtime-integrity-bench) · [`verbatim-citation-gate`](https://github.com/tonydzi/verbatim-citation-gate)
 
 <!--ecosystem-map:end-->
 
