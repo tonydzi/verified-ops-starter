@@ -1,5 +1,66 @@
 # verified-ops-starter
 
+Checks that a scheduled job really did its work, instead of trusting the job when it says "exit 0".
+
+**Who it's for:** anyone running cron jobs, nightly scripts or AI agents that report on themselves.
+**What you get:** three small checks (is the output fresh, did this run change anything, is the fix really on every machine) and one clear exit-code scheme. No server, no dependencies, no account.
+
+## Quick start
+1. Install Python 3.8 or newer. Nothing else.
+2. Clone it: `git clone https://github.com/tonydzi/verified-ops-starter` and open the folder.
+3. Run the self-test: `python3 selftest.py`
+
+**Done when:** the last line says `44 checks, 0 failed`. Then try the demo: `python3 examples/demo_job.py --once` followed by `python3 -m verified_ops freshness --config examples/verified-ops.json` prints `FRESH`.
+
+> Want an AI agent to do it for you? Paste this to Claude Code / Codex / Cursor:
+> "Read the 'For AI agents' section of https://github.com/tonydzi/verified-ops-starter and set it up for me."
+
+## For AI agents
+
+### Preconditions
+- Python 3.8+ (checked with 3.12), standard library only. Use `python` instead of `python3` on Windows.
+- No account, key or network.
+- Ask the human: which job to guard, which file that job rewrites on every healthy run, how often it runs (sets `max_age_h` = cadence + grace), and how alerts should reach them.
+
+### Install
+```
+git clone https://github.com/tonydzi/verified-ops-starter
+cd verified-ops-starter
+```
+Nothing to install. To use it from your own project, copy the `verified_ops/` folder next to your scripts.
+
+### Configure
+Copy `examples/verified-ops.json` and edit it (ask the human for each value; do not guess paths):
+- `artifacts[].path` (or `newest_glob`): the file the job rewrites.
+- `artifacts[].max_age_h`: cadence plus grace (daily job: 26).
+- `alert.command`: optional alert command; omit it to alert on stderr.
+- `rollout.targets`: only if you check a fix across machines.
+
+Run the checks:
+```
+python3 -m verified_ops freshness --config verified-ops.json
+python3 -m verified_ops wrap --artifact out/export.json --config verified-ops.json -- ./nightly.sh
+python3 -m verified_ops rollout --config verified-ops.json
+```
+Exit codes: `0` clean, `1` problem found and alert delivered, `3` problem found but alert not delivered, `4` the checker itself crashed.
+
+### Verify
+```
+python3 selftest.py
+```
+Expected: last line `44 checks, 0 failed`, exit code 0 (real run 2026-11-13: yes). Demo check: `python3 examples/demo_job.py --once` then `python3 -m verified_ops freshness --config examples/verified-ops.json` prints `FRESH       nightly export 0.0h`, exit 0.
+
+### Uninstall / rollback
+Delete the cloned folder and remove any cron or scheduler entry you added. The demo writes only to `examples/out/`.
+
+### Rules for the agent
+- Do not edit the human's cron or scheduler without asking.
+- Do not put secrets or hostnames in `verified-ops.json` if you commit it.
+- Treat exit code 4 as a crash of the checker, never as "all fine".
+- If you change the code, add a failing-case test (a "mutant") to `selftest.py` first; see `AGENTS.md`.
+
+## Details
+
 **Your scheduled job says `exit 0`. Prove it did the work.**
 
 [![selftest](https://github.com/tonydzi/verified-ops-starter/actions/workflows/selftest.yml/badge.svg)](https://github.com/tonydzi/verified-ops-starter/actions/workflows/selftest.yml)
