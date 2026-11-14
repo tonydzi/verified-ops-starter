@@ -36,7 +36,7 @@ Copy `examples/verified-ops.json` and edit it (ask the human for each value; do 
 - `alert.command`: optional alert command; omit it to alert on stderr.
 - `rollout.targets`: only if you check a fix across machines.
 
-Run the checks:
+Run the checks (`./nightly.sh` is a placeholder for the human's own job; on Windows use e.g. `-- python tools/job.py`; the config must exist first, copied in the step above):
 ```
 python3 -m verified_ops freshness --config verified-ops.json
 python3 -m verified_ops wrap --artifact out/export.json --config verified-ops.json -- ./nightly.sh
